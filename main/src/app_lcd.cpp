@@ -7,7 +7,15 @@
 
 #include "logo_en_240x240_lcd.h"
 
+extern "C" {
+#include "st7789.h"
+#include "fontx.h"
+}
+
+
 static const char TAG[] = "App/LCD";
+static TFT_t dev;
+
 
 AppLCD::AppLCD(AppButton *key,
                QueueHandle_t queue_i,
@@ -17,6 +25,7 @@ AppLCD::AppLCD(AppButton *key,
                                                   panel_handle(NULL),
                                                   switch_on(false)
 {
+#if 0    
     do
     {
         ESP_LOGI(TAG, "Initialize SPI bus");
@@ -63,6 +72,19 @@ AppLCD::AppLCD(AppButton *key,
         this->draw_wallpaper();
         vTaskDelay(pdMS_TO_TICKS(1000));
     } while (0);
+#else 
+	spi_master_init(&dev, BOARD_LCD_MOSI, BOARD_LCD_SCK, BOARD_LCD_CS, BOARD_LCD_DC, BOARD_LCD_RST, BOARD_LCD_BL);
+	lcdInit(&dev, BOARD_LCD_V_RES, BOARD_LCD_H_RES, 0, 0);
+
+
+    this->draw_color(GREEN);
+    lcdDrawFinish(&dev);
+    vTaskDelay(pdMS_TO_TICKS(1000));
+
+    this->draw_wallpaper();
+    lcdDrawFinish(&dev);
+    vTaskDelay(pdMS_TO_TICKS(5000));
+#endif
 }
 
 void AppLCD::draw_wallpaper()
@@ -74,7 +96,13 @@ void AppLCD::draw_wallpaper()
         return;
     }
     memcpy(pixels, logo_en_240x240_lcd, (logo_en_240x240_lcd_width * logo_en_240x240_lcd_height) * sizeof(uint16_t));
-    esp_lcd_panel_draw_bitmap(panel_handle, 0, 0, logo_en_240x240_lcd_width, logo_en_240x240_lcd_height, (uint16_t *)pixels);
+    
+    // esp_lcd_panel_draw_bitmap(panel_handle, 0, 0, logo_en_240x240_lcd_width, logo_en_240x240_lcd_height, (uint16_t *)pixels);
+    for (uint16_t y = 0; y < logo_en_240x240_lcd_height; y++) 
+    {
+        lcdDrawMultiPixels(&dev, 0, y, logo_en_240x240_lcd_width, &pixels[y * logo_en_240x240_lcd_width]);
+    }
+
     heap_caps_free(pixels);
 
     this->paper_drawn = true;
@@ -96,7 +124,8 @@ void AppLCD::draw_color(int color)
 
         for (int y = 0; y < BOARD_LCD_V_RES; y++)
         {
-            esp_lcd_panel_draw_bitmap(panel_handle, 0, y, BOARD_LCD_H_RES, y+1, buffer);
+            // esp_lcd_panel_draw_bitmap(panel_handle, 0, y, BOARD_LCD_H_RES, y+1, buffer);
+            lcdDrawMultiPixels(&dev, 0, y, BOARD_LCD_H_RES, buffer);
         }
 
         free(buffer);

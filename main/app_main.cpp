@@ -26,9 +26,9 @@ extern "C" void app_main()
     key->attach(led);
     key->attach(lcd);
 
-    lcd->run();
-    motion->run();
-    face->run();
-    camera->run();
-    key->run();
+    //lcd->run();
+    //motion->run();
+    //face->run();
+    //camera->run();
+    //key->run();
 }
