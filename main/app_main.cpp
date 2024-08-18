@@ -15,20 +15,20 @@ extern "C" void app_main()
     QueueHandle_t xQueueFrame_2 = xQueueCreate(2, sizeof(camera_fb_t *));
 
     AppButton *key = new AppButton();
-    AppCamera *camera = new AppCamera(PIXFORMAT_RGB565, FRAMESIZE_240X240, 2, xQueueFrame_0);
+    AppCamera *camera = new AppCamera(/*PIXFORMAT_RGB565*/ PIXFORMAT_GRAYSCALE, FRAMESIZE_240X240, 2, xQueueFrame_0);
     AppFace *face = new AppFace(key, xQueueFrame_0, xQueueFrame_1);
     AppMotion *motion = new AppMotion(key, xQueueFrame_1, xQueueFrame_2);
     AppLCD *lcd = new AppLCD(key, xQueueFrame_2);
     AppLED *led = new AppLED(GPIO_NUM_3, key);
-
+        
     key->attach(face);
     key->attach(motion);
     key->attach(led);
     key->attach(lcd);
 
-    //lcd->run();
-    //motion->run();
-    //face->run();
-    //camera->run();
-    //key->run();
+    lcd->run();
+    motion->run();
+    face->run();
+    camera->run();
+    key->run();
 }

@@ -21,14 +21,14 @@ void AppMotion::update()
         if (this->key->pressed == BUTTON_MENU)
         {
             this->switch_on = (this->key->menu == MENU_MOTION_DETECTION) ? true : false;
-            ESP_LOGD(TAG, "%s", this->switch_on ? "ON" : "OFF");
+            ESP_LOGI(TAG, "%s", this->switch_on ? "ON" : "OFF");
         }
     }
 }
 
 static void task(AppMotion *self)
 {
-    ESP_LOGD(TAG, "Start");
+    ESP_LOGI(TAG, "Start");
     while (true)
     {
         if (self->queue_i == nullptr)
@@ -59,7 +59,7 @@ static void task(AppMotion *self)
                 self->callback(frame1);
         }
     }
-    ESP_LOGD(TAG, "Stop");
+    ESP_LOGI(TAG, "Stop");
     vTaskDelete(NULL);
 }
 

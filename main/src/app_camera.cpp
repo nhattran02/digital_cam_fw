@@ -49,7 +49,7 @@ AppCamera::AppCamera(const pixformat_t pixel_fromat,
     config.xclk_freq_hz = XCLK_FREQ_HZ;
     config.pixel_format = pixel_fromat;
     config.frame_size = frame_size;
-    config.jpeg_quality = 12;
+    config.jpeg_quality = 0; //12
     config.fb_count = fb_count;
     config.fb_location = CAMERA_FB_IN_PSRAM;
     config.grab_mode = CAMERA_GRAB_WHEN_EMPTY;
@@ -76,17 +76,18 @@ AppCamera::AppCamera(const pixformat_t pixel_fromat,
 
 static void task(AppCamera *self)
 {
-    ESP_LOGD(TAG, "Start");
+    ESP_LOGI(TAG, "Start");
     while (true)
     {
         if (self->queue_o == nullptr)
             break;
 
         camera_fb_t *frame = esp_camera_fb_get();
-        if (frame)
+        if (frame){
             xQueueSend(self->queue_o, &frame, portMAX_DELAY);
+        }
     }
-    ESP_LOGD(TAG, "Stop");
+    ESP_LOGI(TAG, "Stop");
     vTaskDelete(NULL);
 }
 

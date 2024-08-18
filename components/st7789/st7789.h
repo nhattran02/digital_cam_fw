@@ -56,6 +56,8 @@ void delayMS(int ms);
 void lcdInit(TFT_t * dev, int width, int height, int offsetx, int offsety);
 void lcdDrawPixel(TFT_t * dev, uint16_t x, uint16_t y, uint16_t color);
 void lcdDrawMultiPixels(TFT_t * dev, uint16_t x, uint16_t y, uint16_t size, uint16_t * colors);
+void lcdDrawMultiPixelsGrayScale(TFT_t * dev, uint16_t x, uint16_t y, uint16_t size, uint8_t * colors) ;
+void lcd_draw_bitmap(TFT_t * dev, int x_start, int y_start, int x_end, int y_end, const void *color_data);
 void lcdDrawFillRect(TFT_t * dev, uint16_t x1, uint16_t y1, uint16_t x2, uint16_t y2, uint16_t color);
 void lcdDisplayOff(TFT_t * dev);
 void lcdDisplayOn(TFT_t * dev);

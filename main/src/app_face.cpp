@@ -88,7 +88,7 @@ void AppFace::update()
         {
             this->state = FACE_IDLE;
             this->switch_on = (this->key->menu == MENU_FACE_RECOGNITION) ? true : false;
-            ESP_LOGD(TAG, "%s", this->switch_on ? "ON" : "OFF");
+            ESP_LOGI(TAG, "%s", this->switch_on ? "ON" : "OFF");
         }
         else if (this->key->pressed == BUTTON_PLAY)
         {
@@ -108,7 +108,7 @@ void AppFace::update()
 
 static void task(AppFace *self)
 {
-    ESP_LOGD(TAG, "Start");
+    ESP_LOGI(TAG, "Start");
     camera_fb_t *frame = nullptr;
 
     while (true)
@@ -142,7 +142,7 @@ static void task(AppFace *self)
                         {
                             self->recognize_result = self->recognizer->recognize((uint16_t *)frame->buf, {(int)frame->height, (int)frame->width, 3}, detect_results.front().keypoint);
                             // print_detection_result(detect_results);
-                            ESP_LOGD(TAG, "Similarity: %f", self->recognize_result.similarity);
+                            ESP_LOGI(TAG, "Similarity: %f", self->recognize_result.similarity);
                             if (self->recognize_result.id > 0)
                                 ESP_LOGI(TAG, "Match ID: %d", self->recognize_result.id);
                             else
@@ -196,7 +196,7 @@ static void task(AppFace *self)
                 self->callback(frame);
         }
     }
-    ESP_LOGD(TAG, "Stop");
+    ESP_LOGI(TAG, "Stop");
     vTaskDelete(NULL);
 }
 

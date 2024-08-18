@@ -32,7 +32,7 @@
 #define HOST_ID SPI3_HOST
 #endif
 
-#define SPI_DEFAULT_FREQUENCY SPI_MASTER_FREQ_20M; // 20MHz
+#define SPI_DEFAULT_FREQUENCY SPI_MASTER_FREQ_80M; // 20MHz
 
 static const int SPI_Command_Mode = 0;
 static const int SPI_Data_Mode = 1;
@@ -305,6 +305,23 @@ void lcdDrawPixel(TFT_t * dev, uint16_t x, uint16_t y, uint16_t color){
 }
 
 
+uint16_t rgb565_to_grayscale(uint16_t color) {
+    uint8_t r = (color >> 11) & 0x1F;
+    uint8_t g = (color >> 5) & 0x3F;
+    uint8_t b = color & 0x1F;
+
+    // Convert to 8-bit values
+    r = (r << 3) | (r >> 2);
+    g = (g << 2) | (g >> 4);
+    b = (b << 3) | (b >> 2);
+
+    // Calculate grayscale value
+    uint8_t grayscale = (uint8_t)(0.3 * r + 0.59 * g + 0.11 * b);
+
+    // Convert grayscale back to RGB565
+    return ((grayscale >> 3) << 11) | ((grayscale >> 2) << 5) | (grayscale >> 3);
+}
+
 // Draw multi pixel
 // x:X coordinate
 // y:Y coordinate
@@ -313,6 +330,7 @@ void lcdDrawPixel(TFT_t * dev, uint16_t x, uint16_t y, uint16_t color){
 void lcdDrawMultiPixels(TFT_t * dev, uint16_t x, uint16_t y, uint16_t size, uint16_t * colors) {
 	if (x+size > dev->_width) return;
 	if (y >= dev->_height) return;
+
 
 	if (dev->_use_frame_buffer) {
 		uint16_t _x1 = x;
@@ -338,6 +356,75 @@ void lcdDrawMultiPixels(TFT_t * dev, uint16_t x, uint16_t y, uint16_t size, uint
 		spi_master_write_command(dev, 0x2C);	// Memory Write
 		spi_master_write_colors(dev, colors, size);
 	}
+}
+
+
+void lcdDrawMultiPixelsGrayScale(TFT_t * dev, uint16_t x, uint16_t y, uint16_t size, uint8_t * colors) 
+{
+	if (x+size > dev->_width) return;
+	if (y >= dev->_height) return;
+
+    // Create a buffer to hold RGB565 data
+    uint16_t rgb565_colors[size];
+
+    for (int i = 0; i < size; i++) {
+        uint8_t grayscale = colors[i];
+        // Convert grayscale 8-bit to RGB565
+        uint16_t rgb565 = ((grayscale >> 3) << 11) | ((grayscale >> 2) << 5) | (grayscale >> 3);
+        rgb565_colors[i] = rgb565;
+    }
+
+    if (dev->_use_frame_buffer) {
+        uint16_t _x1 = x;
+        uint16_t _x2 = _x1 + (size - 1);
+        uint16_t _y1 = y;
+        uint16_t _y2 = _y1;
+        int16_t index = 0;
+        for (int16_t j = _y1; j <= _y2; j++) {
+            for (int16_t i = _x1; i <= _x2; i++) {
+                dev->_frame_buffer[j * dev->_width + i] = rgb565_colors[index++];
+            }
+        }
+    } else {
+        uint16_t _x1 = x + dev->_offsetx;
+        uint16_t _x2 = _x1 + (size - 1);
+        uint16_t _y1 = y + dev->_offsety;
+        uint16_t _y2 = _y1;
+
+        spi_master_write_command(dev, 0x2A);    // set column(x) address
+        spi_master_write_addr(dev, _x1, _x2);
+        spi_master_write_command(dev, 0x2B);    // set Page(y) address
+        spi_master_write_addr(dev, _y1, _y2);
+        spi_master_write_command(dev, 0x2C);    // Memory Write
+        spi_master_write_colors(dev, rgb565_colors, size);
+    }	
+
+
+}
+
+
+// Nhat's code
+void lcd_draw_bitmap(TFT_t * dev, int x_start, int y_start, int x_end, int y_end, const void *color_data)
+{
+	assert((x_start < x_end) && (y_start < y_end) && "start position must be smaller than end position");
+    x_start += dev->_offsetx;
+    x_end += dev->_offsetx;
+    y_start += dev->_offsety;
+    y_end += dev->_offsety;
+
+    // Set column (x) address
+    spi_master_write_command(dev, 0x2A);  // CASET: Column Address Set
+    spi_master_write_addr(dev, x_start, x_end - 1);
+
+	// Set row (y) address
+	spi_master_write_command(dev, 0x2B);  // RASET: Row Address Set
+	spi_master_write_addr(dev, y_start, y_end - 1);
+
+    // Memory Write
+	size_t len = (x_end - x_start) * (y_end - y_start) * 16 / 8;
+    spi_master_write_command(dev, 0x2C);  // RAMWR: Memory Write
+    spi_master_write_colors(dev, color_data, len);
+
 }
 
 // Draw rectangle of filling
