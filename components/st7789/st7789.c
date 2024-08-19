@@ -398,9 +398,55 @@ void lcdDrawMultiPixelsGrayScale(TFT_t * dev, uint16_t x, uint16_t y, uint16_t s
         spi_master_write_command(dev, 0x2C);    // Memory Write
         spi_master_write_colors(dev, rgb565_colors, size);
     }	
-
-
 }
+
+
+void lcdDrawMultiPixelsRGB444(TFT_t * dev, uint16_t x, uint16_t y, uint16_t size, uint16_t * colors) 
+{
+    if (x + size > dev->_width) return;
+    if (y >= dev->_height) return;
+
+    uint16_t converted_colors[size];
+
+    
+    for (int i = 0; i < size; i++) {
+        uint16_t color = colors[i];
+        uint16_t r = (color >> 8) & 0xF; // 4-bit Red
+        uint16_t g = (color >> 4) & 0xF; // 4-bit Green
+        uint16_t b = color & 0xF;        // 4-bit Blue
+
+        uint16_t r5 = (r << 1) | (r >> 3);
+        uint16_t g6 = (g << 2) | (g >> 2);
+        uint16_t b5 = (b << 1) | (b >> 3);
+        converted_colors[i] = (r5 << 11) | (g6 << 5) | b5;
+    }
+
+    if (dev->_use_frame_buffer) {
+        uint16_t _x1 = x;
+        uint16_t _x2 = _x1 + (size - 1);
+        uint16_t _y1 = y;
+        uint16_t _y2 = _y1;
+        int16_t index = 0;
+        for (int16_t j = _y1; j <= _y2; j++) {
+            for (int16_t i = _x1; i <= _x2; i++) {
+                dev->_frame_buffer[j * dev->_width + i] = converted_colors[index++];
+            }
+        }
+    } else {
+        uint16_t _x1 = x + dev->_offsetx;
+        uint16_t _x2 = _x1 + (size - 1);
+        uint16_t _y1 = y + dev->_offsety;
+        uint16_t _y2 = _y1;
+
+        spi_master_write_command(dev, 0x2A);    // set column(x) address
+        spi_master_write_addr(dev, _x1, _x2);
+        spi_master_write_command(dev, 0x2B);    // set Page(y) address
+        spi_master_write_addr(dev, _y1, _y2);
+        spi_master_write_command(dev, 0x2C);    // Memory Write
+        spi_master_write_colors(dev, converted_colors, size);
+    }
+}
+
 
 
 // Nhat's code

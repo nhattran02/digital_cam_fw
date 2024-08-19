@@ -4,6 +4,8 @@
 #include "esp_system.h"
 
 const static char TAG[] = "App/Camera";
+static sensor_t *s = nullptr;
+
 
 AppCamera::AppCamera(const pixformat_t pixel_fromat,
                      const framesize_t frame_size,
@@ -49,11 +51,11 @@ AppCamera::AppCamera(const pixformat_t pixel_fromat,
     config.xclk_freq_hz = XCLK_FREQ_HZ;
     config.pixel_format = pixel_fromat;
     config.frame_size = frame_size;
-    config.jpeg_quality = 0; //12
+    config.jpeg_quality = 0;
     config.fb_count = fb_count;
     config.fb_location = CAMERA_FB_IN_PSRAM;
     config.grab_mode = CAMERA_GRAB_WHEN_EMPTY;
-
+        
     // camera init
     esp_err_t err = esp_camera_init(&config);
     if (err != ESP_OK)
@@ -62,16 +64,23 @@ AppCamera::AppCamera(const pixformat_t pixel_fromat,
         return;
     }
 
-    sensor_t *s = esp_camera_sensor_get();
-    s->set_vflip(s, 1); // flip it back
-    // initial sensors are flipped vertically and colors are a bit saturated
+    s = esp_camera_sensor_get();
+    if (s->id.PID == OV3660_PID || s->id.PID == OV2640_PID) {
+        s->set_vflip(s, 1); //flip it back    
+    }
+    else if (s->id.PID == GC0308_PID) {
+        s->set_hmirror(s, 0);
+    }
+    else if (s->id.PID == GC032A_PID) {
+        s->set_vflip(s, 1);
+    }
+
+    //initial sensors are flipped vertically and colors are a bit saturated
     if (s->id.PID == OV3660_PID)
     {
-        s->set_brightness(s, 1);  // up the blightness just a bit
-        s->set_saturation(s, -2); // lower the saturation
+        s->set_brightness(s, 1);  //up the brightness just a bit
+        s->set_saturation(s, -2); //lower the saturation
     }
-    s->set_sharpness(s, 2);
-    s->set_awb_gain(s, 2);
 }
 
 static void task(AppCamera *self)

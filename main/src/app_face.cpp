@@ -1,3 +1,9 @@
+#undef EPS
+#include "opencv2/core.hpp"
+#include "opencv2/imgproc.hpp"
+#include "opencv2/imgcodecs.hpp"
+#define EPS 192
+
 #include "app_face.hpp"
 
 #include <list>
@@ -11,6 +17,8 @@
 #include "who_ai_utils.hpp"
 
 static const char TAG[] = "App/Face";
+using namespace cv;
+
 
 #define RGB565_MASK_RED 0xF800
 #define RGB565_MASK_GREEN 0x07E0
@@ -62,6 +70,8 @@ AppFace::AppFace(AppButton *key,
                                                     state(FACE_IDLE),
                                                     switch_on(false)
 {
+#if 0
+
 #if CONFIG_MFN_V1
 #if CONFIG_S8
     this->recognizer = new FaceRecognition112V1S8();
@@ -72,6 +82,8 @@ AppFace::AppFace(AppButton *key,
 
     this->recognizer->set_partition(ESP_PARTITION_TYPE_DATA, ESP_PARTITION_SUBTYPE_ANY, "fr");
     this->recognizer->set_ids_from_flash();
+#endif
+
 }
 
 AppFace::~AppFace()
@@ -103,8 +115,8 @@ void AppFace::update()
             this->state = FACE_DELETE;
         }
     }
-
 }
+
 
 static void task(AppFace *self)
 {
@@ -120,6 +132,11 @@ static void task(AppFace *self)
         {
             if (self->switch_on)
             {
+
+                Mat input_img = Mat(frame->height, frame->width, CV_8UC1, frame->buf);
+                threshold(input_img, input_img, 127, 255, THRESH_BINARY);
+
+#if 0                
                 std::list<dl::detect::result_t> &detect_candidates = self->detector.infer((uint16_t *)frame->buf, {(int)frame->height, (int)frame->width, 3});
                 std::list<dl::detect::result_t> &detect_results = self->detector2.infer((uint16_t *)frame->buf, {(int)frame->height, (int)frame->width, 3}, detect_candidates);
 
@@ -188,6 +205,7 @@ static void task(AppFace *self)
 
                     self->frame_count--;
                 }
+#endif                
             }
 
             if (self->queue_o)
@@ -200,7 +218,10 @@ static void task(AppFace *self)
     vTaskDelete(NULL);
 }
 
+
+
+
 void AppFace::run()
 {
-    xTaskCreatePinnedToCore((TaskFunction_t)task, TAG, 5 * 1024, this, 5, NULL, 1);
+    xTaskCreatePinnedToCore((TaskFunction_t)task, TAG, 6 * 1024, this, 5, NULL, 1);
 }

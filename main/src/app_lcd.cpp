@@ -8,7 +8,6 @@ extern "C" {
 #include "fontx.h"
 }
 
-#define LCD_PANEL       0
 #define LCD_INVERSION   1
 
 static const char TAG[] = "App/LCD";
@@ -23,53 +22,6 @@ AppLCD::AppLCD(AppButton *key,
                                                   panel_handle(NULL),
                                                   switch_on(false)
 {
-#if LCD_PANEL  
-
-    ESP_LOGI(TAG, "Initialize SPI bus");
-    spi_bus_config_t bus_conf = {
-        .mosi_io_num = BOARD_LCD_MOSI,
-        .miso_io_num = BOARD_LCD_MISO,
-        .sclk_io_num = BOARD_LCD_SCK,
-        .quadwp_io_num = -1,
-        .quadhd_io_num = -1,
-        .max_transfer_sz = BOARD_LCD_H_RES * BOARD_LCD_V_RES * sizeof(uint16_t),
-    };
-    ESP_ERROR_CHECK(spi_bus_initialize(SPI2_HOST, &bus_conf, SPI_DMA_CH_AUTO));
-
-    ESP_LOGI(TAG, "Install panel IO");
-    esp_lcd_panel_io_handle_t io_handle = NULL;
-    esp_lcd_panel_io_spi_config_t io_config = {
-        .cs_gpio_num = BOARD_LCD_CS,
-        .dc_gpio_num = BOARD_LCD_DC,
-        .spi_mode = 0,
-        .pclk_hz = BOARD_LCD_PIXEL_CLOCK_HZ,
-        .trans_queue_depth = 10,
-        .lcd_cmd_bits = BOARD_LCD_CMD_BITS,
-        .lcd_param_bits = BOARD_LCD_PARAM_BITS,
-    };
-    // Attach the LCD to the SPI bus
-    ESP_ERROR_CHECK(esp_lcd_new_panel_io_spi((esp_lcd_spi_bus_handle_t)SPI2_HOST, &io_config, &io_handle));
-
-    // ESP_LOGI(TAG, "Install ST7789 panel driver");
-    esp_lcd_panel_dev_config_t panel_config = {
-        .reset_gpio_num = BOARD_LCD_RST,
-        .rgb_endian = LCD_RGB_ENDIAN_RGB,
-        .bits_per_pixel = 16,
-    };
-    ESP_ERROR_CHECK(esp_lcd_new_panel_st7789(io_handle, &panel_config, &panel_handle));
-    ESP_ERROR_CHECK(esp_lcd_panel_reset(panel_handle));
-    ESP_ERROR_CHECK(esp_lcd_panel_init(panel_handle));
-    esp_lcd_panel_invert_color(panel_handle, true); // Set inversion for esp32s3eye
-
-    // turn on display
-    esp_lcd_panel_disp_on_off(panel_handle, true);
-
-    this->draw_color(rgb565(255, 0, 0));
-    vTaskDelay(pdMS_TO_TICKS(5000));
-    this->draw_wallpaper();
-    vTaskDelay(pdMS_TO_TICKS(1000));
-
-#else
     spi_master_init(&dev, BOARD_LCD_MOSI, BOARD_LCD_SCK, BOARD_LCD_CS, BOARD_LCD_DC, BOARD_LCD_RST, BOARD_LCD_BL);
 	lcdInit(&dev, BOARD_LCD_V_RES, BOARD_LCD_H_RES, 0, 0);
 
@@ -78,20 +30,13 @@ AppLCD::AppLCD(AppButton *key,
     lcdInversionOn(&dev);
 #endif
     
-    this->draw_color(rgb565(255, 0, 0));
+    this->draw_color(rgb565(255, 255, 255));
     lcdDrawFinish(&dev);
-    vTaskDelay(pdMS_TO_TICKS(5000));
+    vTaskDelay(pdMS_TO_TICKS(1000));
 
     this->draw_wallpaper();
     lcdDrawFinish(&dev);
     vTaskDelay(pdMS_TO_TICKS(1000));
-#endif
-}
-
-
-static uint16_t invert_rgb565(uint16_t color)
-{
-    return (~color & 0xFFFF);
 }
 
 void AppLCD::draw_wallpaper()
@@ -107,10 +52,6 @@ void AppLCD::draw_wallpaper()
     }
     memcpy(pixels, logo_en_240x240_lcd, (logo_en_240x240_lcd_width * logo_en_240x240_lcd_height) * sizeof(uint16_t));
         
-#if LCD_PANEL
-    esp_lcd_panel_draw_bitmap(panel_handle, 0, 0, logo_en_240x240_lcd_width, logo_en_240x240_lcd_height, (uint16_t*)pixels);
-#else
-
     for (uint16_t y = 0; y < logo_en_240x240_lcd_height; y++) 
     {
         uint16_t inverted_y = logo_en_240x240_lcd_height - 1 - y;
@@ -125,8 +66,6 @@ void AppLCD::draw_wallpaper()
 
         lcdDrawMultiPixels(&dev, 0, y, logo_en_240x240_lcd_width, line);
     }
-
-#endif
 
     heap_caps_free(pixels);
 
@@ -153,11 +92,7 @@ void AppLCD::draw_color(int color)
 
         for (int y = 0; y < BOARD_LCD_V_RES; y++)
         {
-#if LCD_PANEL
-            esp_lcd_panel_draw_bitmap(panel_handle, 0, y, BOARD_LCD_H_RES, y + 1, buffer);
-#else
             lcdDrawMultiPixels(&dev, 0, y, BOARD_LCD_H_RES, buffer);
-#endif
         }
 
         free(buffer);
@@ -193,21 +128,12 @@ static void task(AppLCD *self)
 
         if (xQueueReceive(self->queue_i, &frame, portMAX_DELAY))
         {
-#if 1
-            for (int y = 0; y < frame->height; y++)
-            {
-                // lcdDrawMultiPixels(&dev, 0, y, frame->width, (uint16_t *)frame->buf + y * frame->width);
-                lcdDrawMultiPixelsGrayScale(&dev, 0, y, frame->width, (uint8_t *)frame->buf + y * frame->width);
-
-            }
-#endif
-
             if (self->switch_on)
             {
-                // esp_lcd_panel_draw_bitmap(self->panel_handle, 0, 0, frame->width, frame->height, (uint16_t *)frame->buf);
                 for (int y = 0; y < frame->height; y++)
                 {
-                    lcdDrawMultiPixels(&dev, 0, y, frame->width, (uint16_t *)frame->buf + y * frame->width);
+                    lcdDrawMultiPixelsGrayScale(&dev, 0, y, frame->width, (uint8_t *)frame->buf + y * frame->width);
+                    //lcdDrawMultiPixels(&dev, 0, y, frame->width, (uint16_t *)frame->buf + y * frame->width);
                 }
             }
             else if (self->paper_drawn == false)
