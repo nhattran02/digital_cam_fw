@@ -21,7 +21,7 @@ extern "C" void app_main()
     AppMotion *motion = new AppMotion(key, xQueueAIFrame, xQueueLCDFrame);
     AppLCD *lcd = new AppLCD(key, xQueueLCDFrame);
     AppLED *led = new AppLED(GPIO_NUM_3, key);
-        
+            
     key->attach(face);
     key->attach(motion);
     key->attach(led);

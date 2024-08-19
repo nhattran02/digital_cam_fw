@@ -65,30 +65,15 @@ AppFace::AppFace(AppButton *key,
                  QueueHandle_t queue_o,
                  void (*callback)(camera_fb_t *)) : Frame(queue_i, queue_o, callback),
                                                     key(key),
-                                                    detector(0.3F, 0.3F, 10, 0.3F),
-                                                    detector2(0.4F, 0.3F, 10),
                                                     state(FACE_IDLE),
                                                     switch_on(false)
 {
-#if 0
-
-#if CONFIG_MFN_V1
-#if CONFIG_S8
-    this->recognizer = new FaceRecognition112V1S8();
-#elif CONFIG_S16
-    this->recognizer = new FaceRecognition112V1S16();
-#endif
-#endif
-
-    this->recognizer->set_partition(ESP_PARTITION_TYPE_DATA, ESP_PARTITION_SUBTYPE_ANY, "fr");
-    this->recognizer->set_ids_from_flash();
-#endif
-
+    
 }
 
 AppFace::~AppFace()
 {
-    delete this->recognizer;
+    // Empty 
 }
 
 void AppFace::update()
@@ -99,16 +84,16 @@ void AppFace::update()
         if (this->key->pressed == BUTTON_MENU)
         {
             this->state = FACE_IDLE;
-            this->switch_on = (this->key->menu == MENU_FACE_RECOGNITION) ? true : false;
+            this->switch_on = (this->key->menu == MENU_OPENCV) ? true : false;
             ESP_LOGI(TAG, "%s", this->switch_on ? "ON" : "OFF");
         }
         else if (this->key->pressed == BUTTON_PLAY)
         {
-            this->state = FACE_RECOGNIZE;
+            this->state = FACE_THRESHOLD;
         }
         else if (this->key->pressed == BUTTON_UP)
         {
-            this->state = FACE_ENROLL;
+            this->state = FACE_EDGES;
         }
         else if (this->key->pressed == BUTTON_DOWN)
         {
@@ -134,7 +119,29 @@ static void task(AppFace *self)
             {
 
                 Mat input_img = Mat(frame->height, frame->width, CV_8UC1, frame->buf);
-                threshold(input_img, input_img, 127, 255, THRESH_BINARY);
+
+                if (self->state)
+                {
+                    switch (self->state)
+                    {
+                    case FACE_EDGES:
+                    {
+                        Sobel(input_img, input_img, CV_8UC1, 1, 1, 5);
+                        break;
+                    }
+                    case FACE_THRESHOLD:
+                    {
+                        threshold(input_img, input_img, 127, 255, THRESH_BINARY);
+                        break;
+                    }
+                    case FACE_DELETE:
+                    {
+                        break;
+                    }
+                    default:
+                        break;
+                    }
+                }
 
 #if 0                
                 std::list<dl::detect::result_t> &detect_candidates = self->detector.infer((uint16_t *)frame->buf, {(int)frame->height, (int)frame->width, 3});

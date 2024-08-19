@@ -1,18 +1,6 @@
 #pragma once
 
 #include "sdkconfig.h"
-
-#include "human_face_detect_msr01.hpp"
-#include "human_face_detect_mnp01.hpp"
-#include "face_recognition_tool.hpp"
-#if CONFIG_MFN_V1
-#if CONFIG_S8
-#include "face_recognition_112_v1_s8.hpp"
-#elif CONFIG_S16
-#include "face_recognition_112_v1_s16.hpp"
-#endif
-#endif
-
 #include "__base__.hpp"
 #include "app_camera.hpp"
 #include "app_button.hpp"
@@ -20,8 +8,8 @@
 typedef enum
 {
     FACE_IDLE = 0,
-    FACE_ENROLL = 1,
-    FACE_RECOGNIZE = 2,
+    FACE_EDGES = 1,
+    FACE_THRESHOLD = 2,
     FACE_DELETE = 3,
 } face_action_t;
 
@@ -31,18 +19,6 @@ private:
     AppButton *key;
 
 public:
-    HumanFaceDetectMSR01 detector;
-    HumanFaceDetectMNP01 detector2;
-
-#if CONFIG_MFN_V1
-#if CONFIG_S8
-    FaceRecognition112V1S8 *recognizer;
-#elif CONFIG_S16
-    FaceRecognition112V1S16 *recognizer;
-#endif
-#endif
-
-    face_info_t recognize_result;
     face_action_t state;
     face_action_t state_previous;
 
