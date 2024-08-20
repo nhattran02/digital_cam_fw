@@ -6,8 +6,7 @@ set(include_dirs    include
                     opencv)
 
 set(requires    console
-                esp_adc_cal
-                )
+                fatfs)
 
 idf_component_register(SRC_DIRS ${src_dirs} INCLUDE_DIRS ${include_dirs})
 

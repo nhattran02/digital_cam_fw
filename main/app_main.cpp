@@ -1,13 +1,10 @@
-
-
 #include "driver/gpio.h"
 #include "app_button.hpp"
 #include "app_camera.hpp"
 #include "app_lcd.hpp"
 #include "app_led.hpp"
-#include "app_motion.hpp"
+#include "app_webserver.hpp"
 #include "app_face.hpp"
-
 
 extern "C" void app_main()
 {
@@ -18,17 +15,17 @@ extern "C" void app_main()
     AppButton *key = new AppButton();
     AppCamera *camera = new AppCamera(PIXFORMAT_GRAYSCALE, FRAMESIZE_240X240, 2, xQueueCamFrame);
     AppFace *face = new AppFace(key, xQueueCamFrame, xQueueAIFrame);
-    AppMotion *motion = new AppMotion(key, xQueueAIFrame, xQueueLCDFrame);
-    AppLCD *lcd = new AppLCD(key, xQueueLCDFrame);
+    AppLCD *lcd = new AppLCD(key, xQueueAIFrame);
+    AppWebServer *webserver= new AppWebServer(key, xQueueAIFrame, xQueueLCDFrame);
     AppLED *led = new AppLED(GPIO_NUM_3, key);
             
     key->attach(face);
-    key->attach(motion);
+    key->attach(webserver);
     key->attach(led);
     key->attach(lcd);
     
     lcd->run();
-    motion->run();
+    // webserver->run();
     face->run();
     camera->run();
     key->run();

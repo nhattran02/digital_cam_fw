@@ -141,78 +141,7 @@ static void task(AppFace *self)
                     default:
                         break;
                     }
-                }
-
-#if 0                
-                std::list<dl::detect::result_t> &detect_candidates = self->detector.infer((uint16_t *)frame->buf, {(int)frame->height, (int)frame->width, 3});
-                std::list<dl::detect::result_t> &detect_results = self->detector2.infer((uint16_t *)frame->buf, {(int)frame->height, (int)frame->width, 3}, detect_candidates);
-
-                if (detect_results.size())
-                {
-                    // print_detection_result(detect_results);
-                    draw_detection_result((uint16_t *)frame->buf, frame->height, frame->width, detect_results);
-                }
-
-                if (self->state)
-                {
-                    if (detect_results.size() == 1)
-                    {
-                        if (self->state == FACE_ENROLL)
-                        {
-                            self->recognizer->enroll_id((uint16_t *)frame->buf, {(int)frame->height, (int)frame->width, 3}, detect_results.front().keypoint, "", true);
-                            ESP_LOGI(TAG, "Enroll ID %d", self->recognizer->get_enrolled_ids().back().id);
-                        }
-                        else if (self->state == FACE_RECOGNIZE)
-                        {
-                            self->recognize_result = self->recognizer->recognize((uint16_t *)frame->buf, {(int)frame->height, (int)frame->width, 3}, detect_results.front().keypoint);
-                            // print_detection_result(detect_results);
-                            ESP_LOGI(TAG, "Similarity: %f", self->recognize_result.similarity);
-                            if (self->recognize_result.id > 0)
-                                ESP_LOGI(TAG, "Match ID: %d", self->recognize_result.id);
-                            else
-                                ESP_LOGI(TAG, "Match ID: %d", self->recognize_result.id);
-                        }
-                    }
-
-                    if (self->state == FACE_DELETE)
-                    {
-                        vTaskDelay(10);
-                        self->recognizer->delete_id(true);
-                        ESP_LOGI(TAG, "%d IDs left", self->recognizer->get_enrolled_id_num());
-                    }
-
-                    self->state_previous = self->state;
-                    self->state = FACE_IDLE;
-                    self->frame_count = FRAME_DELAY_NUM;
-                }
-
-                // Write result on several frames of image
-                if (self->frame_count)
-                {
-                    switch (self->state_previous)
-                    {
-                    case FACE_DELETE:
-                        rgb_printf(frame, RGB565_MASK_RED, "%d IDs left", self->recognizer->get_enrolled_id_num());
-                        break;
-
-                    case FACE_RECOGNIZE:
-                        if (self->recognize_result.id > 0)
-                            rgb_printf(frame, RGB565_MASK_GREEN, "ID %d", self->recognize_result.id);
-                        else
-                            rgb_print(frame, RGB565_MASK_RED, "who ?");
-                        break;
-
-                    case FACE_ENROLL:
-                        rgb_printf(frame, RGB565_MASK_BLUE, "Enroll: ID %d", self->recognizer->get_enrolled_ids().back().id);
-                        break;
-
-                    default:
-                        break;
-                    }
-
-                    self->frame_count--;
-                }
-#endif                
+                }                
             }
 
             if (self->queue_o)

@@ -5,7 +5,7 @@
 
 const static char TAG[] = "App/Camera";
 static sensor_t *s = nullptr;
-
+volatile bool is_camera_allow_run = false;
 
 AppCamera::AppCamera(const pixformat_t pixel_fromat,
                      const framesize_t frame_size,
@@ -63,6 +63,7 @@ AppCamera::AppCamera(const pixformat_t pixel_fromat,
         ESP_LOGE(TAG, "Camera init failed with error 0x%x", err);
         return;
     }
+    is_camera_allow_run = true;
 
     s = esp_camera_sensor_get();
     if (s->id.PID == OV3660_PID || s->id.PID == OV2640_PID) {
@@ -88,12 +89,20 @@ static void task(AppCamera *self)
     ESP_LOGI(TAG, "Start");
     while (true)
     {
-        if (self->queue_o == nullptr)
-            break;
+        if (is_camera_allow_run == true)
+        {
+            if (self->queue_o == nullptr)
+                break;
 
-        camera_fb_t *frame = esp_camera_fb_get();
-        if (frame){
-            xQueueSend(self->queue_o, &frame, portMAX_DELAY);
+            camera_fb_t *frame = esp_camera_fb_get();
+            if (frame)
+            {
+                xQueueSend(self->queue_o, &frame, portMAX_DELAY);
+            }
+        }
+        else 
+        {
+            vTaskDelay(pdMS_TO_TICKS(10));
         }
     }
     ESP_LOGI(TAG, "Stop");

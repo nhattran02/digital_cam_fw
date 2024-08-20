@@ -6,6 +6,8 @@
 
 #include "__base__.hpp"
 
+extern volatile bool is_camera_allow_run;
+
 #if CONFIG_CAMERA_MODULE_WROVER_KIT
 #define CAMERA_MODULE_NAME "Wrover Kit"
 #define CAMERA_PIN_PWDN -1

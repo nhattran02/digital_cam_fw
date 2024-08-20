@@ -105,7 +105,7 @@ void AppLCD::update()
     {
         if (this->key->pressed == BUTTON_MENU)
         {
-            this->switch_on = (this->key->menu == MENU_STOP_WORKING) ? false : true;
+            this->switch_on = (this->key->menu == MENU_STOP_WORKING || this->key->menu == MENU_WEBSERVER) ? false : true;
             ESP_LOGI(TAG, "%s", this->switch_on ? "ON" : "OFF");
         }
     }
@@ -154,5 +154,5 @@ static void task(AppLCD *self)
 
 void AppLCD::run()
 {
-    xTaskCreatePinnedToCore((TaskFunction_t)task, TAG, 2 * 1024, this, 5, NULL, 1);
+    xTaskCreatePinnedToCore((TaskFunction_t)task, TAG, 3 * 1024, this, 5, NULL, 1);
 }
