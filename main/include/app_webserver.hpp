@@ -5,7 +5,7 @@
 #include "app_button.hpp"
 
 
-class AppWebServer : public Observer, public Frame
+class AppWebServer : public Observer
 {
 private:
     AppButton *key;
@@ -13,12 +13,7 @@ private:
 public:
     bool switch_on;
 
-    AppWebServer(AppButton *key,
-              QueueHandle_t queue_i = nullptr,
-              QueueHandle_t queue_o = nullptr,
-              void (*callback)(camera_fb_t *) = esp_camera_fb_return);
+    AppWebServer(AppButton *key);
 
     void update();
-            
-    void run();
 };

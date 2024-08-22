@@ -11,21 +11,81 @@
 #include "app_mdns.h"
 #include "who_camera.h"
 #include "who_human_face_detection.hpp"
+#include "utils.hpp"
+#include "esp_wifi.h"
 
 static const char TAG[] = "App/Webserver";
 static QueueHandle_t xQueueAIFrame = NULL;
 static QueueHandle_t xQueueHttpFrame = NULL;
 volatile bool is_webserver_config = false;
-volatile bool is_register_httpd = false;
+static sensor_t *s = nullptr;
 
-AppWebServer::AppWebServer(AppButton *key,
-                           QueueHandle_t queue_i,
-                           QueueHandle_t queue_o,
-                           void (*callback)(camera_fb_t *)) : Frame(queue_i, queue_o, callback),
-                                                              key(key),
-                                                              switch_on(false)
+AppWebServer::AppWebServer(AppButton *key) : key(key), switch_on(false)
 {
+    
 }
+
+static void app_camera_reinit(const pixformat_t pixel_fromat,
+                              const framesize_t frame_size,
+                              const uint8_t fb_count)
+{
+#if 1
+    camera_config_t config;
+    config.ledc_channel = LEDC_CHANNEL_0;
+    config.ledc_timer = LEDC_TIMER_0;
+    config.pin_d0 = CAMERA_PIN_D0;
+    config.pin_d1 = CAMERA_PIN_D1;
+    config.pin_d2 = CAMERA_PIN_D2;
+    config.pin_d3 = CAMERA_PIN_D3;
+    config.pin_d4 = CAMERA_PIN_D4;
+    config.pin_d5 = CAMERA_PIN_D5;
+    config.pin_d6 = CAMERA_PIN_D6;
+    config.pin_d7 = CAMERA_PIN_D7;
+    config.pin_xclk = CAMERA_PIN_XCLK;
+    config.pin_pclk = CAMERA_PIN_PCLK;
+    config.pin_vsync = CAMERA_PIN_VSYNC;
+    config.pin_href = CAMERA_PIN_HREF;
+    config.pin_sscb_sda = CAMERA_PIN_SIOD;
+    config.pin_sscb_scl = CAMERA_PIN_SIOC;
+    config.pin_pwdn = CAMERA_PIN_PWDN;
+    config.pin_reset = CAMERA_PIN_RESET;
+    config.xclk_freq_hz = XCLK_FREQ_HZ;
+    config.pixel_format = pixel_fromat;
+    config.frame_size = frame_size;
+    config.jpeg_quality = 0;
+    config.fb_count = fb_count;
+    config.fb_location = CAMERA_FB_IN_PSRAM;
+    config.grab_mode = CAMERA_GRAB_WHEN_EMPTY;
+        
+    // camera init
+    esp_err_t err = esp_camera_init(&config);
+    if (err != ESP_OK)
+    {
+        ESP_LOGE(TAG, "Camera init failed with error 0x%x", err);
+        return;
+    }
+#endif
+
+    s = esp_camera_sensor_get();
+
+    if (s->id.PID == OV3660_PID || s->id.PID == OV2640_PID) {
+        s->set_vflip(s, 1); //flip it back    
+    }   
+    else if (s->id.PID == GC0308_PID) {
+        s->set_hmirror(s, 0);
+    }
+    else if (s->id.PID == GC032A_PID) {
+        s->set_vflip(s, 1);
+    }
+
+    //initial sensors are flipped vertically and colors are a bit saturated
+    if (s->id.PID == OV3660_PID)
+    {
+        s->set_brightness(s, 1);  //up the brightness just a bit
+        s->set_saturation(s, -2); //lower the saturation
+    }
+}
+
 
 void AppWebServer::update()
 {
@@ -38,73 +98,61 @@ void AppWebServer::update()
 
             if (this->switch_on == true)
             {
-                app_wifi_main();
-                size_t free_mem_before = esp_get_free_heap_size();
-                ESP_LOGI(TAG, "Free heap memory before init: %d bytes", free_mem_before);
-                xQueueAIFrame = xQueueCreate(2, sizeof(camera_fb_t *));
-                xQueueHttpFrame = xQueueCreate(2, sizeof(camera_fb_t *));
+                print_mem_info("Before switch on");
+
+                if (xQueueAIFrame == NULL)
+                    xQueueAIFrame = xQueueCreate(2, sizeof(camera_fb_t *));
+
+                if (xQueueHttpFrame == NULL)
+                    xQueueHttpFrame = xQueueCreate(2, sizeof(camera_fb_t *));
 
                 if (is_camera_allow_run == true)
                 {
                     is_camera_allow_run = false;
-                    vTaskDelay(500 / portTICK_PERIOD_MS);
-                    esp_camera_deinit();
+                    vTaskDelay(1000 / portTICK_PERIOD_MS);
+                    ESP_ERROR_CHECK(esp_camera_deinit());
                     register_camera(PIXFORMAT_RGB565, FRAMESIZE_240X240, 2, xQueueAIFrame);
                 }
-
-                app_mdns_main();
-                register_human_face_detection(xQueueAIFrame, NULL, NULL, xQueueHttpFrame);
-                register_httpd(xQueueHttpFrame, NULL, true);
-                
-                size_t free_mem_after = esp_get_free_heap_size();
-                ESP_LOGI(TAG, "Free heap memory after init: %d bytes", free_mem_after);                
-            }
-        }
-    }
-}
-
-static void task(AppWebServer *self)
-{
-    ESP_LOGI(TAG, "Start");
-    if (xQueueAIFrame == NULL)
-        xQueueAIFrame = xQueueCreate(2, sizeof(camera_fb_t *));
-    if (xQueueHttpFrame == NULL)
-        xQueueHttpFrame = xQueueCreate(2, sizeof(camera_fb_t *));
-    
-    while (true)
-    {
-        if (self->queue_i == nullptr)
-            break;
-
-        camera_fb_t *frame = NULL;
-        if (xQueueReceive(self->queue_i, &frame, portMAX_DELAY))
-        {
-            if (self->switch_on)
-            {
                 if (is_webserver_config == false)
                 {
                     app_wifi_main();
-                    sensor_t* s = esp_camera_sensor_get();
-                    s->set_pixformat(s, PIXFORMAT_RGB565);
-                    s->set_vflip(s, 0);                    
                     app_mdns_main();
-                    // register_human_face_detection(self->queue_i, NULL, NULL, xQueueHttpFrame);
-                    // register_httpd(xQueueHttpFrame, NULL, true);
+                    register_human_face_detection(xQueueAIFrame, NULL, NULL, xQueueHttpFrame);
+                    register_httpd(xQueueHttpFrame, NULL, true);
                     is_webserver_config = true;
                 }
+                print_mem_info("After switch on");
+
             }
+            else 
+            {
+                // Stack overflow HERE........
+                if (is_camera_allow_run == false)
+                {
+                    print_mem_info("Before unregister");
+                    unregister_httpd();
+                    unregister_human_face_detection();
+                    app_mdns_stop();
+                    app_wifi_stop();
+                    unregister_camera();
+                    if (xQueueAIFrame != NULL) {
+                        vQueueDelete(xQueueAIFrame);
+                        xQueueAIFrame = NULL;
+                    }
 
-            if (self->queue_o)
-                xQueueSend(self->queue_o, &frame, portMAX_DELAY);
-            else
-                self->callback(frame);            
-        }
+                    if (xQueueHttpFrame != NULL) {
+                        vQueueDelete(xQueueHttpFrame);
+                        xQueueHttpFrame = NULL;
+                    }                    
+
+                    print_mem_info("After unregister");
+                    app_camera_reinit(PIXFORMAT_GRAYSCALE, FRAMESIZE_240X240, 2);
+                    print_mem_info("After camera reinit");
+                    vTaskDelay(1000 / portTICK_PERIOD_MS);
+                    is_camera_allow_run = true;
+                    is_webserver_config = false;
+                }
+            }
+        }   
     }
-    ESP_LOGI(TAG, "Stop");
-    vTaskDelete(NULL);
-}
-
-void AppWebServer::run()
-{
-    xTaskCreatePinnedToCore((TaskFunction_t)task, TAG, 5 * 1024, this, 5, NULL, 0);
 }

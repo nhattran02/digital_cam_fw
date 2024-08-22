@@ -2,6 +2,7 @@
 
 #include "esp_log.h"
 #include "esp_system.h"
+#include "utils.hpp"
 
 const static char TAG[] = "App/Camera";
 static sensor_t *s = nullptr;
@@ -55,7 +56,7 @@ AppCamera::AppCamera(const pixformat_t pixel_fromat,
     config.fb_count = fb_count;
     config.fb_location = CAMERA_FB_IN_PSRAM;
     config.grab_mode = CAMERA_GRAB_WHEN_EMPTY;
-        
+    
     // camera init
     esp_err_t err = esp_camera_init(&config);
     if (err != ESP_OK)
@@ -75,7 +76,7 @@ AppCamera::AppCamera(const pixformat_t pixel_fromat,
     else if (s->id.PID == GC032A_PID) {
         s->set_vflip(s, 1);
     }
-
+    
     //initial sensors are flipped vertically and colors are a bit saturated
     if (s->id.PID == OV3660_PID)
     {
@@ -106,10 +107,10 @@ static void task(AppCamera *self)
         }
     }
     ESP_LOGI(TAG, "Stop");
-    vTaskDelete(NULL);
+        vTaskDelete(NULL);
 }
 
 void AppCamera::run()
 {
-    xTaskCreatePinnedToCore((TaskFunction_t)task, TAG, 2 * 1024, this, 5, NULL, 0);
+    xTaskCreatePinnedToCore((TaskFunction_t)task, TAG, 3 * 1024, this, 5, NULL, 0);
 }

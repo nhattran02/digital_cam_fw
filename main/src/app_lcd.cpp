@@ -29,7 +29,7 @@ AppLCD::AppLCD(AppButton *key,
     ESP_LOGI(TAG, "Enable Display Inversion");
     lcdInversionOn(&dev);
 #endif
-    
+
     this->draw_color(rgb565(255, 255, 255));
     lcdDrawFinish(&dev);
     vTaskDelay(pdMS_TO_TICKS(1000));
@@ -106,6 +106,10 @@ void AppLCD::update()
         if (this->key->pressed == BUTTON_MENU)
         {
             this->switch_on = (this->key->menu == MENU_STOP_WORKING || this->key->menu == MENU_WEBSERVER) ? false : true;
+            if(this->key->menu == MENU_WEBSERVER)
+            {
+                this->draw_wallpaper();
+            }
             ESP_LOGI(TAG, "%s", this->switch_on ? "ON" : "OFF");
         }
     }
@@ -124,7 +128,7 @@ static void task(AppLCD *self)
     while (true)
     {
         if (self->queue_i == nullptr)
-            break;
+            break;     
 
         if (xQueueReceive(self->queue_i, &frame, portMAX_DELAY))
         {
@@ -133,7 +137,6 @@ static void task(AppLCD *self)
                 for (int y = 0; y < frame->height; y++)
                 {
                     lcdDrawMultiPixelsGrayScale(&dev, 0, y, frame->width, (uint8_t *)frame->buf + y * frame->width);
-                    //lcdDrawMultiPixels(&dev, 0, y, frame->width, (uint16_t *)frame->buf + y * frame->width);
                 }
             }
             else if (self->paper_drawn == false)

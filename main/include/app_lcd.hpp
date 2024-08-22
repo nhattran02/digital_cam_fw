@@ -30,12 +30,11 @@ class AppLCD : public Observer, public Frame
 {
 private:
     AppButton *key;
-
 public:
     esp_lcd_panel_handle_t panel_handle;
     bool switch_on;
     bool paper_drawn;
-
+    
     AppLCD(AppButton *key,
            QueueHandle_t xQueueFrameI = nullptr,
            QueueHandle_t xQueueFrameO = nullptr,
