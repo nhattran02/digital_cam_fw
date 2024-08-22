@@ -7,12 +7,38 @@ extern "C" {
 #include "st7789.h"
 #include "fontx.h"
 }
+#include "esp_system.h"
+#include "esp_vfs.h"
+#include "esp_spiffs.h"
 
 #define LCD_INVERSION   1
 
 static const char TAG[] = "App/LCD";
 static TFT_t dev;
+static FontxFile fx24G[2];
 
+static void spiffs_directory(char * path) {
+	DIR* dir = opendir(path);
+	assert(dir != NULL);
+	while (true) {
+		struct dirent*pe = readdir(dir);
+		if (!pe) break;
+		ESP_LOGI(__FUNCTION__,"d_name=%s d_ino=%d d_type=%x", pe->d_name,pe->d_ino, pe->d_type);
+	}
+	closedir(dir);
+}
+
+static void print_webserver_info(void)
+{
+    uint8_t ascii[30] = {0};
+    strcpy((char *)ascii, "SSID:Digital-Camera");
+    lcdDrawString(&dev, fx24G, 235, 135, ascii, BLACK);
+    strcpy((char *)ascii, "Password:12345678");
+    lcdDrawString(&dev, fx24G, 225, 105, ascii, BLACK);
+    strcpy((char *)ascii, "Access:camera.local");
+    lcdDrawString(&dev, fx24G, 235, 75, ascii, BLACK);
+    lcdDrawFinish(&dev);
+}
 
 AppLCD::AppLCD(AppButton *key,
                QueueHandle_t queue_i,
@@ -22,6 +48,41 @@ AppLCD::AppLCD(AppButton *key,
                                                   panel_handle(NULL),
                                                   switch_on(false)
 {
+	ESP_LOGI(TAG, "Initializing SPIFFS");
+
+	esp_vfs_spiffs_conf_t conf = {
+		.base_path = "/spiffs",
+		.partition_label = NULL,
+		.max_files = 12,
+		.format_if_mount_failed =true
+	};
+
+	esp_err_t ret = esp_vfs_spiffs_register(&conf);
+
+	if (ret != ESP_OK) {
+		if (ret == ESP_FAIL) {
+			ESP_LOGE(TAG, "Failed to mount or format filesystem");
+		} else if (ret == ESP_ERR_NOT_FOUND) {
+			ESP_LOGE(TAG, "Failed to find SPIFFS partition");
+		} else {
+			ESP_LOGE(TAG, "Failed to initialize SPIFFS (%s)",esp_err_to_name(ret));
+		}
+		return;
+	}
+
+	size_t total = 0, used = 0;
+	ret = esp_spiffs_info(NULL, &total,&used);
+	if (ret != ESP_OK) {
+		ESP_LOGE(TAG,"Failed to get SPIFFS partition information (%s)",esp_err_to_name(ret));
+	} else {
+		ESP_LOGI(TAG,"Partition size: total: %d, used: %d", total, used);
+	}
+
+    spiffs_directory("/spiffs/");
+
+    // Set font file 
+    InitFontx(fx24G,"/spiffs/ILGH24XB.FNT","");
+
     spi_master_init(&dev, BOARD_LCD_MOSI, BOARD_LCD_SCK, BOARD_LCD_CS, BOARD_LCD_DC, BOARD_LCD_RST, BOARD_LCD_BL);
 	lcdInit(&dev, BOARD_LCD_V_RES, BOARD_LCD_H_RES, 0, 0);
 
@@ -30,9 +91,9 @@ AppLCD::AppLCD(AppButton *key,
     lcdInversionOn(&dev);
 #endif
 
-    this->draw_color(rgb565(255, 255, 255));
+    this->draw_color(rgb565(239, 239, 239));
     lcdDrawFinish(&dev);
-    vTaskDelay(pdMS_TO_TICKS(1000));
+    vTaskDelay(pdMS_TO_TICKS(500));
 
     this->draw_wallpaper();
     lcdDrawFinish(&dev);
@@ -108,7 +169,10 @@ void AppLCD::update()
             this->switch_on = (this->key->menu == MENU_STOP_WORKING || this->key->menu == MENU_WEBSERVER) ? false : true;
             if(this->key->menu == MENU_WEBSERVER)
             {
-                this->draw_wallpaper();
+                // this->draw_wallpaper();
+                this->draw_color(rgb565(239, 239, 239));
+                lcdSetFontDirection(&dev, 2);                
+                print_webserver_info();
             }
             ESP_LOGI(TAG, "%s", this->switch_on ? "ON" : "OFF");
         }

@@ -78,7 +78,7 @@ static void app_camera_reinit(const pixformat_t pixel_fromat,
         s->set_vflip(s, 1);
     }
 
-    //initial sensors are flipped vertically and colors are a bit saturated
+    // initial sensors are flipped vertically and colors are a bit saturated
     if (s->id.PID == OV3660_PID)
     {
         s->set_brightness(s, 1);  //up the brightness just a bit
@@ -98,7 +98,6 @@ void AppWebServer::update()
 
             if (this->switch_on == true)
             {
-                print_mem_info("Before switch on");
 
                 if (xQueueAIFrame == NULL)
                     xQueueAIFrame = xQueueCreate(2, sizeof(camera_fb_t *));
@@ -109,7 +108,7 @@ void AppWebServer::update()
                 if (is_camera_allow_run == true)
                 {
                     is_camera_allow_run = false;
-                    vTaskDelay(1000 / portTICK_PERIOD_MS);
+                    vTaskDelay(500 / portTICK_PERIOD_MS);
                     ESP_ERROR_CHECK(esp_camera_deinit());
                     register_camera(PIXFORMAT_RGB565, FRAMESIZE_240X240, 2, xQueueAIFrame);
                 }
@@ -121,15 +120,12 @@ void AppWebServer::update()
                     register_httpd(xQueueHttpFrame, NULL, true);
                     is_webserver_config = true;
                 }
-                print_mem_info("After switch on");
-
             }
             else 
             {
                 // Stack overflow HERE........
                 if (is_camera_allow_run == false)
                 {
-                    print_mem_info("Before unregister");
                     unregister_httpd();
                     unregister_human_face_detection();
                     app_mdns_stop();
@@ -144,11 +140,9 @@ void AppWebServer::update()
                         vQueueDelete(xQueueHttpFrame);
                         xQueueHttpFrame = NULL;
                     }                    
-
-                    print_mem_info("After unregister");
+            
                     app_camera_reinit(PIXFORMAT_GRAYSCALE, FRAMESIZE_240X240, 2);
-                    print_mem_info("After camera reinit");
-                    vTaskDelay(1000 / portTICK_PERIOD_MS);
+                    vTaskDelay(500 / portTICK_PERIOD_MS);
                     is_camera_allow_run = true;
                     is_webserver_config = false;
                 }

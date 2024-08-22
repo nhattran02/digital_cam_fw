@@ -5,4 +5,7 @@ cmake_minimum_required(VERSION 3.5)
 set(EXTRA_COMPONENT_DIRS ../../components)
 add_compile_options(-fdiagnostics-color=always)
 include($ENV{IDF_PATH}/tools/cmake/project.cmake)
-project(esp32-s3-eye)
+project(digital_cam_fw)   
+
+# Enable this line for the first time flash fw
+# spiffs_create_partition_image(storage font FLASH_IN_PROJECT)
