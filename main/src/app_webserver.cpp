@@ -30,7 +30,7 @@ static void app_camera_reinit(const pixformat_t pixel_fromat,
                               const uint8_t fb_count)
 {
 #if 1
-    camera_config_t config;
+    camera_config_t config; 
     config.ledc_channel = LEDC_CHANNEL_0;
     config.ledc_timer = LEDC_TIMER_0;
     config.pin_d0 = CAMERA_PIN_D0;
@@ -56,7 +56,7 @@ static void app_camera_reinit(const pixformat_t pixel_fromat,
     config.fb_count = fb_count;
     config.fb_location = CAMERA_FB_IN_PSRAM;
     config.grab_mode = CAMERA_GRAB_WHEN_EMPTY;
-        
+                
     // camera init
     esp_err_t err = esp_camera_init(&config);
     if (err != ESP_OK)

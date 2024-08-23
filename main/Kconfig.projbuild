@@ -67,3 +67,4 @@ menu "Digital Cam Configuration"
     endif  # EXAMPLE_STORAGE_MEDIA_SDMMCCARD
 
 endmenu
+
