@@ -98,7 +98,6 @@ static void _mount(void)
 }
 
 
-
 #ifdef CONFIG_EXAMPLE_STORAGE_MEDIA_SPIFLASH
 static esp_err_t storage_init_spiflash(wl_handle_t *wl_handle)
 {

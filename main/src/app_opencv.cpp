@@ -4,7 +4,7 @@
 #include "opencv2/imgcodecs.hpp"
 #define EPS 192
 
-#include "app_face.hpp"
+#include "app_opencv.hpp"
 
 #include <list>
 
@@ -16,9 +16,8 @@
 
 #include "who_ai_utils.hpp"
 
-static const char TAG[] = "App/Face";
+static const char TAG[] = "App/OpenCV";
 using namespace cv;
-
 
 #define RGB565_MASK_RED 0xF800
 #define RGB565_MASK_GREEN 0x07E0
@@ -26,84 +25,49 @@ using namespace cv;
 
 #define FRAME_DELAY_NUM 16
 
-static void rgb_print(camera_fb_t *fb, uint32_t color, const char *str)
+AppOpenCV::AppOpenCV(AppButton *key,
+                     QueueHandle_t queue_i,
+                     QueueHandle_t queue_o,
+                     void (*callback)(camera_fb_t *)) : Frame(queue_i, queue_o, callback),
+                                                        key(key),
+                                                        state(OPENCV_IDLE),
+                                                        switch_on(false)
 {
-    fb_gfx_print(fb, (fb->width - (strlen(str) * 14)) / 2, 10, color, str);
+    // Empty
 }
 
-static int rgb_printf(camera_fb_t *fb, uint32_t color, const char *format, ...)
+AppOpenCV::~AppOpenCV()
 {
-    char loc_buf[64];
-    char *temp = loc_buf;
-    int len;
-    va_list arg;
-    va_list copy;
-    va_start(arg, format);
-    va_copy(copy, arg);
-    len = vsnprintf(loc_buf, sizeof(loc_buf), format, arg);
-    va_end(copy);
-    if (len >= sizeof(loc_buf))
-    {
-        temp = (char *)malloc(len + 1);
-        if (temp == NULL)
-        {
-            return 0;
-        }
-    }
-    vsnprintf(temp, len + 1, format, arg);
-    va_end(arg);
-    rgb_print(fb, color, temp);
-    if (len > 64)
-    {
-        free(temp);
-    }
-    return len;
+    // Empty
 }
 
-AppFace::AppFace(AppButton *key,
-                 QueueHandle_t queue_i,
-                 QueueHandle_t queue_o,
-                 void (*callback)(camera_fb_t *)) : Frame(queue_i, queue_o, callback),
-                                                    key(key),
-                                                    state(FACE_IDLE),
-                                                    switch_on(false)
-{
-    
-}
-
-AppFace::~AppFace()
-{
-    // Empty 
-}
-
-void AppFace::update()
+void AppOpenCV::update()
 {
     // Parse key
     if (this->key->pressed > BUTTON_IDLE)
     {
         if (this->key->pressed == BUTTON_MENU)
         {
-            this->state = FACE_IDLE;
+            this->state = OPENCV_IDLE;
             this->switch_on = (this->key->menu == MENU_OPENCV) ? true : false;
             ESP_LOGI(TAG, "%s", this->switch_on ? "ON" : "OFF");
         }
         else if (this->key->pressed == BUTTON_PLAY)
         {
-            this->state = FACE_THRESHOLD;
+            this->state = OPENCV_THRESHOLD;
         }
         else if (this->key->pressed == BUTTON_UP)
         {
-            this->state = FACE_EDGES;
+            this->state = OPENCV_EDGES;
         }
         else if (this->key->pressed == BUTTON_DOWN)
         {
-            this->state = FACE_DELETE;
+            this->state = OPENCV_DELETE;
         }
     }
 }
 
-
-static void task(AppFace *self)
+static void task(AppOpenCV *self)
 {
     ESP_LOGI(TAG, "Start");
     camera_fb_t *frame = nullptr;
@@ -124,26 +88,26 @@ static void task(AppFace *self)
                 {
                     switch (self->state)
                     {
-                    case FACE_EDGES:
+                    case OPENCV_EDGES:
                     {
                         Sobel(input_img, input_img, CV_8UC1, 1, 1, 5);
                         break;
                     }
-                    case FACE_THRESHOLD:
+                    case OPENCV_THRESHOLD:
                     {
                         threshold(input_img, input_img, 127, 255, THRESH_BINARY);
                         break;
                     }
-                    case FACE_DELETE:
+                    case OPENCV_DELETE:
                     {
                         break;
                     }
                     default:
                         break;
                     }
-                }                
+                }
             }
-
+			
             if (self->queue_o)
                 xQueueSend(self->queue_o, &frame, portMAX_DELAY);
             else
@@ -154,10 +118,7 @@ static void task(AppFace *self)
     vTaskDelete(NULL);
 }
 
-
-
-
-void AppFace::run()
+void AppOpenCV::run()
 {
     xTaskCreatePinnedToCore((TaskFunction_t)task, TAG, 6 * 1024, this, 5, NULL, 1);
 }

@@ -4,13 +4,19 @@
 #include <sys/stat.h>
 #include "esp_vfs_fat.h"
 
-
 #define MOUNT_POINT "/sdcard"
+#define BMP_HEADER_SIZE 54
 
 static const char *TAG = "App/SDCard";
 sdmmc_card_t *card;
 
-AppSDCard::AppSDCard(AppButton *key) : key(key), switch_on(false)
+AppSDCard::AppSDCard(AppButton *key, 
+                     QueueHandle_t queue_i,
+                     QueueHandle_t queue_o,
+                     void (*callback)(camera_fb_t *)) : Frame(queue_i, queue_o, callback),
+                                                        key(key),
+                                                        state(SDCARD_IDLE),
+                                                        switch_on(false)
 {
     esp_err_t ret;
     esp_vfs_fat_sdmmc_mount_config_t mount_config = {
@@ -25,7 +31,7 @@ AppSDCard::AppSDCard(AppButton *key) : key(key), switch_on(false)
 
     const char mount_point[] = MOUNT_POINT;
     ESP_LOGI(TAG, "Initializing SD card");
-    ESP_LOGI(TAG, "Using SDMMC peripheral");    
+    ESP_LOGI(TAG, "Using SDMMC peripheral");  
 
     sdmmc_host_t host = SDMMC_HOST_DEFAULT();
     sdmmc_slot_config_t slot_config = SDMMC_SLOT_CONFIG_DEFAULT();
@@ -48,22 +54,15 @@ AppSDCard::AppSDCard(AppButton *key) : key(key), switch_on(false)
         }
         return;
     }
-    ESP_LOGI(TAG, "Filesystem mounted");    
-
+    ESP_LOGI(TAG, "Filesystem mounted");
+    
     // Card has been initialized, print its properties
     sdmmc_card_print_info(stdout, card);
+}
 
-    // ------------------------------
-    const char *file = MOUNT_POINT"/hihi.txt";
-    char data[64];
-    snprintf(data, 64, "This is HIHI's Host\n");
-    ret = write_file(file, data);
-    if (ret != ESP_OK) 
-    {
-        return;
-    }    
-    // ------------------------------
-
+AppSDCard::~AppSDCard()
+{
+    // Empty
 }
 
 esp_err_t AppSDCard::write_file(const char *path, char *data)
@@ -99,12 +98,141 @@ esp_err_t AppSDCard::read_file(const char *path, char *data, size_t size)
     return ESP_OK;
 }
 
-
 void AppSDCard::update()
 {
     // Parse key
     if (this->key->pressed > BUTTON_IDLE)
     {
-
+        if (this->key->pressed == BUTTON_MENU)
+        {
+            this->state = SDCARD_IDLE;
+            this->switch_on = (this->key->menu == MENU_DISPLAY_ONLY) ? true : false;
+            ESP_LOGI(TAG, "%s", this->switch_on ? "ON" : "OFF");
+        }
+        else if (this->key->pressed == BUTTON_PLAY)
+        {
+            this->state = SDCARD_TAKE_PHOTO;
+        }
+        else if (this->key->pressed == BUTTON_UP)
+        {
+            this->state = SDCARD_START_RECORD;
+        }
+        else if (this->key->pressed == BUTTON_DOWN)
+        {
+            this->state = SDCARD_STOP_RECORD;
+        }
     }
 }
+
+void write_bmp_header(FILE *file, uint32_t width, uint32_t height)
+{
+    uint32_t row_padded = (width * 2 + 3) & (~3); // Row size needs to be aligned to 4 bytes
+    uint32_t pixel_data_size = row_padded * height;
+    uint32_t file_size = BMP_HEADER_SIZE + pixel_data_size;
+    uint32_t offset = BMP_HEADER_SIZE;
+
+    // BMP header
+    uint8_t header[BMP_HEADER_SIZE] = {
+        'B', 'M', // Signature
+        (uint8_t)(file_size & 0xFF), (uint8_t)((file_size >> 8) & 0xFF),
+        (uint8_t)((file_size >> 16) & 0xFF), (uint8_t)((file_size >> 24) & 0xFF), // File size
+        0, 0,                                                                     // Reserved
+        0, 0,                                                                     // Reserved
+        (uint8_t)(offset & 0xFF), (uint8_t)((offset >> 8) & 0xFF),
+        (uint8_t)((offset >> 16) & 0xFF), (uint8_t)((offset >> 24) & 0xFF), // Pixel data offset
+        40, 0, 0, 0,                                                        // Header size
+        (uint8_t)(width & 0xFF), (uint8_t)((width >> 8) & 0xFF),
+        (uint8_t)((width >> 16) & 0xFF), (uint8_t)((width >> 24) & 0xFF), // Image width
+        (uint8_t)(height & 0xFF), (uint8_t)((height >> 8) & 0xFF),
+        (uint8_t)((height >> 16) & 0xFF), (uint8_t)((height >> 24) & 0xFF), // Image height
+        1, 0,                                                               // Planes
+        16, 0,                                                              // Bits per pixel
+        0, 0, 0, 0,                                                         // Compression (0 = none)
+        (uint8_t)(pixel_data_size & 0xFF), (uint8_t)((pixel_data_size >> 8) & 0xFF),
+        (uint8_t)((pixel_data_size >> 16) & 0xFF), (uint8_t)((pixel_data_size >> 24) & 0xFF), // Image size
+        0, 0, 0, 0,                                                                           // Horizontal resolution (pixels per meter)
+        0, 0, 0, 0,                                                                           // Vertical resolution (pixels per meter)
+        0, 0, 0, 0,                                                                           // Colors in color palette
+        0, 0, 0, 0                                                                            // Important colors
+    };
+
+    fwrite(header, 1, BMP_HEADER_SIZE, file);
+}
+
+static void take_photo_to_sdcard(camera_fb_t *frame)
+{
+    char path[64];
+    sprintf(path, MOUNT_POINT "/photo_3.bmp");
+        
+    FILE *file = fopen(path, "wb");
+    if (file != NULL)
+    {
+        write_bmp_header(file, frame->width, frame->height);        
+
+        for (size_t i = 0; i < frame->width * frame->height; i++) {
+            uint8_t gray = frame->buf[i];
+            uint16_t rgb565 = ((gray >> 3) << 11) | ((gray >> 2) << 5) | (gray >> 3);
+            fwrite(&rgb565, 2, 1, file);
+        }
+
+        fclose(file);
+        ESP_LOGI(TAG, "Photo saved to %s", path);
+    }
+    else
+    {
+        ESP_LOGE(TAG, "Failed to open file for writing");
+    }
+}
+
+static void task(AppSDCard *self)
+{
+    ESP_LOGI(TAG, "Start");
+    camera_fb_t *frame = nullptr;
+    while (true)
+    {
+        if (self->queue_i == nullptr)
+            break;
+        if (xQueueReceive(self->queue_i, &frame, portMAX_DELAY))
+        {
+            if (self->switch_on)
+            {
+                if (self->state)
+                {
+                    switch (self->state)
+                    {
+                    case SDCARD_TAKE_PHOTO:
+                    {
+                        take_photo_to_sdcard(frame);
+                        break;
+                    }
+                    case SDCARD_START_RECORD:
+                    {
+                        // start_record_to_sdcard(frame);
+                        break;
+                    }
+                    case SDCARD_STOP_RECORD:
+                    {
+                        // stop_record_to_sdcard(frame);
+                        break;
+                    }
+                    default:
+                        break;
+                    }
+                }                
+            }
+
+            if (self->queue_o)
+                xQueueSend(self->queue_o, &frame, portMAX_DELAY);
+            else
+                self->callback(frame);
+        }
+    }
+    ESP_LOGI(TAG, "Stop");
+    vTaskDelete(NULL);
+}
+
+void AppSDCard::run()
+{   
+    xTaskCreatePinnedToCore((TaskFunction_t)task, TAG, 2 * 1024, this, 5, NULL, 1);
+}
+
