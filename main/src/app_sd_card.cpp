@@ -124,70 +124,6 @@ void AppSDCard::update()
     }
 }
 
-
-#if 0
-void write_bmp_header(FILE *file, uint32_t width, uint32_t height)
-{
-    uint32_t row_padded = (width * 2 + 3) & (~3); // Row size needs to be aligned to 4 bytes
-    uint32_t pixel_data_size = row_padded * height;
-    uint32_t file_size = BMP_HEADER_SIZE + pixel_data_size;
-    uint32_t offset = BMP_HEADER_SIZE;
-
-    // BMP header
-    uint8_t header[BMP_HEADER_SIZE] = {
-        'B', 'M', // Signature
-        (uint8_t)(file_size & 0xFF), (uint8_t)((file_size >> 8) & 0xFF),
-        (uint8_t)((file_size >> 16) & 0xFF), (uint8_t)((file_size >> 24) & 0xFF), // File size
-        0, 0,                                                                     // Reserved
-        0, 0,                                                                     // Reserved
-        (uint8_t)(offset & 0xFF), (uint8_t)((offset >> 8) & 0xFF),
-        (uint8_t)((offset >> 16) & 0xFF), (uint8_t)((offset >> 24) & 0xFF), // Pixel data offset
-        40, 0, 0, 0,                                                        // Header size
-        (uint8_t)(width & 0xFF), (uint8_t)((width >> 8) & 0xFF),
-        (uint8_t)((width >> 16) & 0xFF), (uint8_t)((width >> 24) & 0xFF), // Image width
-        (uint8_t)(height & 0xFF), (uint8_t)((height >> 8) & 0xFF),
-        (uint8_t)((height >> 16) & 0xFF), (uint8_t)((height >> 24) & 0xFF), // Image height
-        1, 0,                                                               // Planes
-        16, 0,                                                              // Bits per pixel
-        0, 0, 0, 0,                                                         // Compression (0 = none)
-        (uint8_t)(pixel_data_size & 0xFF), (uint8_t)((pixel_data_size >> 8) & 0xFF),
-        (uint8_t)((pixel_data_size >> 16) & 0xFF), (uint8_t)((pixel_data_size >> 24) & 0xFF), // Image size
-        0, 0, 0, 0,                                                                           // Horizontal resolution (pixels per meter)
-        0, 0, 0, 0,                                                                           // Vertical resolution (pixels per meter)
-        0, 0, 0, 0,                                                                           // Colors in color palette
-        0, 0, 0, 0                                                                            // Important colors
-    };
-
-    fwrite(header, 1, BMP_HEADER_SIZE, file);
-}
-
-static void take_photo_to_sdcard(camera_fb_t *frame)
-{
-    char path[64];
-    sprintf(path, MOUNT_POINT "/photo_3.bmp");
-        
-    FILE *file = fopen(path, "wb");
-    if (file != NULL)
-    {
-        write_bmp_header(file, frame->width, frame->height);        
-
-        for (size_t i = 0; i < frame->width * frame->height; i++) {
-            uint8_t gray = frame->buf[i];
-            uint16_t rgb565 = ((gray >> 3) << 11) | ((gray >> 2) << 5) | (gray >> 3);
-            fwrite(&rgb565, 2, 1, file);
-        }
-
-        fclose(file);
-        ESP_LOGI(TAG, "Photo saved to %s", path);
-    }
-    else
-    {
-        ESP_LOGE(TAG, "Failed to open file for writing");
-    }
-}
-
-#else
-
 void write_bmp_header(FILE *file, uint32_t width, uint32_t height)
 {
     uint32_t row_padded = (width + 3) & (~3); // Row size needs to be aligned to 4 bytes
@@ -240,16 +176,6 @@ static void take_photo_to_sdcard(camera_fb_t *frame)
     {
         write_bmp_header(file, frame->width, frame->height);
 
-#if 0 /* x mirror */
-        for (size_t i = 0; i < frame->height; i++)
-        {
-            fwrite(&frame->buf[i * frame->width], 1, frame->width, file);
-
-            // Padding rows to 4-byte boundary
-            uint8_t padding[3] = {0, 0, 0};
-            fwrite(padding, 1, (4 - (frame->width % 4)) % 4, file);
-        }
-#else 
         for (int i = 0; i < frame->height; i++)
         {
             for (int j = frame->width - 1; j >= 0; j--)
@@ -261,7 +187,7 @@ static void take_photo_to_sdcard(camera_fb_t *frame)
             uint8_t padding[3] = {0, 0, 0};
             fwrite(padding, 1, (4 - (frame->width % 4)) % 4, file);
         }
-#endif
+
         fclose(file);
         ESP_LOGI(TAG, "Photo saved to %s", path);
     }
@@ -270,9 +196,6 @@ static void take_photo_to_sdcard(camera_fb_t *frame)
         ESP_LOGE(TAG, "Failed to open file for writing");
     }
 }
-
-#endif
-
 
 static void task(AppSDCard *self)
 {
@@ -311,7 +234,7 @@ static void task(AppSDCard *self)
                 }      
                 self->state = SDCARD_IDLE;          
             }
-            
+
             if (self->queue_o)
                 xQueueSend(self->queue_o, &frame, portMAX_DELAY);
             else
