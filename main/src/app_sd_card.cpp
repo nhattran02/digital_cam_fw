@@ -3,6 +3,7 @@
 #include <sys/unistd.h>
 #include <sys/stat.h>
 #include "esp_vfs_fat.h"
+#include "dirent.h"
 
 #define MOUNT_POINT "/sdcard"
 #define BMP_HEADER_SIZE 54
@@ -124,6 +125,7 @@ void AppSDCard::update()
     }
 }
 
+
 void write_bmp_header(FILE *file, uint32_t width, uint32_t height)
 {
     uint32_t row_padded = (width + 3) & (~3); // Row size needs to be aligned to 4 bytes
@@ -169,7 +171,30 @@ void write_bmp_header(FILE *file, uint32_t width, uint32_t height)
 static void take_photo_to_sdcard(camera_fb_t *frame)
 {
     char path[64];
-    sprintf(path, MOUNT_POINT "/photo_3.bmp");
+    int max_photo_number = 0;
+
+    DIR *dir = opendir(MOUNT_POINT);
+    if (dir != NULL)
+    {
+        struct dirent *entry;
+        while ((entry = readdir(dir)) != NULL)
+        {
+            ESP_LOGW(TAG, "Found file: %s", entry->d_name);
+            int number;
+            if (sscanf(entry->d_name, "PHOTO_%d.BMP", &number) == 1)
+            {
+                if (number > max_photo_number)
+                {
+                    max_photo_number = number;
+                }
+            }
+        }
+        closedir(dir);
+    }
+
+    ESP_LOGW(TAG, "Max photo number: %d", max_photo_number);
+    int photo_number = max_photo_number + 1;
+    sprintf(path, MOUNT_POINT "/photo_%d.bmp", photo_number);
 
     FILE *file = fopen(path, "wb");
     if (file != NULL)
@@ -232,7 +257,7 @@ static void task(AppSDCard *self)
                         break;
                     }
                 }      
-                self->state = SDCARD_IDLE;          
+                self->state = SDCARD_IDLE;
             }
 
             if (self->queue_o)

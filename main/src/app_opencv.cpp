@@ -107,7 +107,7 @@ static void task(AppOpenCV *self)
                     }
                 }
             }
-			
+            
             if (self->queue_o)
                 xQueueSend(self->queue_o, &frame, portMAX_DELAY);
             else
