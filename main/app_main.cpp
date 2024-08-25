@@ -31,7 +31,7 @@ extern "C" void app_main()
     key->attach(led);
     key->attach(lcd);
     key->attach(sd_card);
-    
+
     lcd->run();
     opencv->run();
     camera->run();
