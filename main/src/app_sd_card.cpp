@@ -7,9 +7,13 @@
 
 #define MOUNT_POINT "/sdcard"
 #define BMP_HEADER_SIZE 54
+#define AVI_HEADER_SIZE 64
+#define GRAYSCALE_FRAME_HEADER_SIZE 8
 
 static const char *TAG = "App/SDCard";
 sdmmc_card_t *card;
+static FILE *video_file = NULL;
+volatile bool is_start_record = false;
 
 AppSDCard::AppSDCard(AppButton *key, 
                      QueueHandle_t queue_i,
@@ -42,7 +46,7 @@ AppSDCard::AppSDCard(AppButton *key,
     slot_config.cmd = GPIO_NUM_38;
     slot_config.d0 = GPIO_NUM_40;   
     slot_config.flags |= SDMMC_SLOT_FLAG_INTERNAL_PULLUP;
-
+    
     ESP_LOGI(TAG, "Mounting filesystem");
     ret = esp_vfs_fat_sdmmc_mount(mount_point, &host, &slot_config, &mount_config, &card);
     if (ret != ESP_OK) {
@@ -126,7 +130,7 @@ void AppSDCard::update()
 }
 
 
-void write_bmp_header(FILE *file, uint32_t width, uint32_t height)
+static void write_bmp_header(FILE *file, uint32_t width, uint32_t height)
 {
     uint32_t row_padded = (width + 3) & (~3); // Row size needs to be aligned to 4 bytes
     uint32_t pixel_data_size = row_padded * height;
@@ -245,19 +249,21 @@ static void task(AppSDCard *self)
                     }
                     case SDCARD_START_RECORD:
                     {
-                        // start_record_to_sdcard(frame);
                         break;
                     }
                     case SDCARD_STOP_RECORD:
                     {
-                        // stop_record_to_sdcard(frame);
                         break;
                     }
                     default:
                         break;
                     }
-                }      
-                self->state = SDCARD_IDLE;
+                }
+
+                if (self->state == SDCARD_TAKE_PHOTO)
+                {
+                    self->state = SDCARD_IDLE;
+                }
             }
 
             if (self->queue_o)
@@ -274,4 +280,3 @@ void AppSDCard::run()
 {   
     xTaskCreatePinnedToCore((TaskFunction_t)task, TAG, 4 * 1024, this, 5, NULL, 1);
 }
-

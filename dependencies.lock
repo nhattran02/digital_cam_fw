@@ -1,9 +1,9 @@
 dependencies:
   espressif/button:
-    component_hash: c3ee3ba339a3848977496d0157008ae574a24fc59f54d27c93ab51b14446a2fb
+    component_hash: 5357a6a2c0c47fa67eb9a4dad8cbd78f848d05409b3557e49ec9948898655cfb
     source:
       type: service
-    version: 3.3.1
+    version: 3.4.0
   espressif/cmake_utilities:
     component_hash: 351350613ceafba240b761b4ea991e0f231ac7a9f59a9ee901f751bddc0bb18f
     source:
@@ -15,10 +15,10 @@ dependencies:
       type: service
     version: 3.0.4
   espressif/esp_codec_dev:
-    component_hash: 251636a498fa3493ff2e6e7527d6b0970eb38e14b2a1478ce70ad627a791742e
+    component_hash: af363202469b2bbecc87f3268729adf37c18c886eba55cab4c268cc9be25b6af
     source:
       type: service
-    version: 1.3.0
+    version: 1.3.2
   espressif/esp_tinyusb:
     component_hash: f151d680d6847bfcfd5d8eb6d1c3ff926c208e6b963b2e83643a141bc70baa15
     source:
@@ -48,6 +48,6 @@ dependencies:
     source:
       type: idf
     version: 5.1.4
-manifest_hash: 00112edf169d37ef0aff5bc6ec92449201b6edd399c170971cf73850fcfb9902
+manifest_hash: e237ee066f342bc62a2652cce3f99e6fd4a6b5a0faf3c066f72dab8360e48010
 target: esp32s3
 version: 1.0.0

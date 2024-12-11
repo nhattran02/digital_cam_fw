@@ -8,4 +8,4 @@ include($ENV{IDF_PATH}/tools/cmake/project.cmake)
 project(digital_cam_fw)   
 
 # Enable this line for the first time flash fw
-# spiffs_create_partition_image(storage font FLASH_IN_PROJECT)
+spiffs_create_partition_image(storage font FLASH_IN_PROJECT)

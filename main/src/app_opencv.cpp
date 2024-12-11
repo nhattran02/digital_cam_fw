@@ -55,14 +55,17 @@ void AppOpenCV::update()
         else if (this->key->pressed == BUTTON_PLAY)
         {
             this->state = OPENCV_THRESHOLD;
+            ESP_LOGI(TAG, "Mode: Threshold Streaming");
         }
         else if (this->key->pressed == BUTTON_UP)
         {
             this->state = OPENCV_EDGES;
+            ESP_LOGI(TAG, "Mode: Sobel Edge Streaming");
         }
         else if (this->key->pressed == BUTTON_DOWN)
         {
-            this->state = OPENCV_DELETE;
+            this->state = OPENCV_BLUR;
+            ESP_LOGI(TAG, "Mode: Blur Streaming");
         }
     }
 }
@@ -81,7 +84,6 @@ static void task(AppOpenCV *self)
         {
             if (self->switch_on)
             {
-
                 Mat input_img = Mat(frame->height, frame->width, CV_8UC1, frame->buf);
 
                 if (self->state)
@@ -98,8 +100,9 @@ static void task(AppOpenCV *self)
                         threshold(input_img, input_img, 127, 255, THRESH_BINARY);
                         break;
                     }
-                    case OPENCV_DELETE:
+                    case OPENCV_BLUR:
                     {
+                        blur(input_img, input_img, Size(7, 7));
                         break;
                     }
                     default:
@@ -107,7 +110,7 @@ static void task(AppOpenCV *self)
                     }
                 }
             }
-            
+                               
             if (self->queue_o)
                 xQueueSend(self->queue_o, &frame, portMAX_DELAY);
             else

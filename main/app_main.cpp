@@ -21,17 +21,17 @@ extern "C" void app_main()
     AppOpenCV *opencv = new AppOpenCV(key, xQueueFrame1, xQueueFrame2);
     AppSDCard *sd_card = new AppSDCard(key, xQueueFrame2, xQueueFrame3);
     AppLCD *lcd = new AppLCD(key, xQueueFrame3);
-
+	
     AppWebServer *webserver = new AppWebServer(key);
     AppLED *led = new AppLED(GPIO_NUM_3, key);
-    AppUSBMSC *usb_msc = new AppUSBMSC();
-
+    // AppUSBMSC *usb_msc = new AppUSBMSC();
+	
     key->attach(opencv);
     key->attach(webserver);
     key->attach(led);
     key->attach(lcd);
     key->attach(sd_card);
-
+        
     lcd->run();
     opencv->run();
     camera->run();

@@ -10,6 +10,7 @@ extern "C" {
 #include "esp_system.h"
 #include "esp_vfs.h"
 #include "esp_spiffs.h"
+#include "esp_timer.h"
 
 #define LCD_INVERSION   1
 
@@ -175,6 +176,7 @@ void AppLCD::update()
                 print_webserver_info();
             }
             ESP_LOGI(TAG, "%s", this->switch_on ? "ON" : "OFF");
+            ESP_LOGI(TAG, "Mode: Normal Streaming");
         }
     }
 
@@ -189,10 +191,13 @@ static void task(AppLCD *self)
     ESP_LOGI(TAG, "Start");
 
     camera_fb_t *frame = nullptr;
+    int64_t start_time = esp_timer_get_time(); // in us
+    int frameCount = 0;
+
     while (true)
     {
         if (self->queue_i == nullptr)
-            break;     
+            break;
 
         if (xQueueReceive(self->queue_i, &frame, portMAX_DELAY))
         {
@@ -201,6 +206,15 @@ static void task(AppLCD *self)
                 for (int y = 0; y < frame->height; y++)
                 {
                     lcdDrawMultiPixelsGrayScale(&dev, 0, y, frame->width, (uint8_t *)frame->buf + y * frame->width);
+                }
+
+                frameCount++;
+                int64_t current_time = esp_timer_get_time();
+                if ((current_time - start_time) >= 1000000)
+                {
+                    ESP_LOGI(TAG, "FPS: %d", frameCount);
+                    frameCount = 0;
+                    start_time = current_time;
                 }
             }
             else if (self->paper_drawn == false)

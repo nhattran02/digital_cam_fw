@@ -11,6 +11,7 @@
 #include "app_mdns.h"
 #include "who_camera.h"
 #include "who_human_face_detection.hpp"
+#include "who_human_face_recognition.hpp"
 #include "utils.hpp"
 #include "esp_wifi.h"
 
@@ -65,7 +66,7 @@ static void app_camera_reinit(const pixformat_t pixel_fromat,
         return;
     }
 #endif
-
+    
     s = esp_camera_sensor_get();
 
     if (s->id.PID == OV3660_PID || s->id.PID == OV2640_PID) {
@@ -116,7 +117,9 @@ void AppWebServer::update()
                 {
                     app_wifi_main();
                     app_mdns_main();
-                    register_human_face_detection(xQueueAIFrame, NULL, NULL, xQueueHttpFrame);
+                    // register_human_face_detection(xQueueAIFrame, NULL, NULL, xQueueHttpFrame);
+                    register_human_face_recognition(xQueueAIFrame, NULL, NULL, xQueueHttpFrame);
+
                     register_httpd(xQueueHttpFrame, NULL, true);
                     is_webserver_config = true;
                 }

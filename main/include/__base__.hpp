@@ -18,7 +18,7 @@ typedef enum
     MENU_DISPLAY_ONLY = 1,
     MENU_OPENCV = 2,
     MENU_WEBSERVER = 3,
-
+    
     ACTION_ENROLL = 4,
     ACTION_DELETE = 5,
     ACTION_RECOGNIZE = 6

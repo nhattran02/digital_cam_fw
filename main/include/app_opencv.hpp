@@ -10,7 +10,7 @@ typedef enum
     OPENCV_IDLE = 0,
     OPENCV_EDGES = 1,
     OPENCV_THRESHOLD = 2,
-    OPENCV_DELETE = 3,
+    OPENCV_BLUR = 3,
 } opencv_action_t;
 
 class AppOpenCV : public Observer, public Frame
